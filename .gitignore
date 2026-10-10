@@ -10,7 +10,7 @@ junit.xml
 
 .env
 .env.*
-!.env.example
+.env.example
 
 logs/
 *.log
