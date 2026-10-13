@@ -1,13 +1,20 @@
-import { ConfigService } from '@nestjs/config';
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+import { env } from './shared/config/env';
+import { criarApp } from './app';
 
-async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
-  app.enableShutdownHooks();
+function bootstrap(): void {
+  const app = criarApp();
 
-  const porta = app.get(ConfigService).get<number>('PORT', 3000);
-  await app.listen(porta);
+  const servidor = app.listen(env.porta, () => {
+    console.log(`Servidor rodando na porta ${env.porta}`);
+  });
+
+  const encerrar = (sinal: NodeJS.Signals): void => {
+    console.log(`${sinal} recebido, encerrando servidor...`);
+    servidor.close(() => process.exit(0));
+  };
+
+  process.on('SIGINT', encerrar);
+  process.on('SIGTERM', encerrar);
 }
 
-void bootstrap();
+bootstrap();

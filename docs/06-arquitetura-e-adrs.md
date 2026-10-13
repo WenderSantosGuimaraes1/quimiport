@@ -16,7 +16,7 @@ No caso da arquitetura Hexagonal, cada módulo pode ser incluído como um novo c
 
 Possíveis soluções:
 
-- Node.js com NestJS
+- Node.js com Express
 - Spring Boot (Java)
 - ASP .NET Core (.NET)
 
