@@ -2,15 +2,15 @@
 
 ## Arquitetura adotada
 
-A **Arquitetura Hexagonal**, que atua com POrts e Adapters, tem o objetivo de separar as responsabilidades da aplicação, reduzir o acoplamento entre as camadas e facilitar sua evolução ao longo das próximas etapas do projeto. Por esse motivo, esse foi o modelo de arquitetura adotado para desenvolvermos o QuimiPort.
+A **Arquitetura Hexagonal**, que atua com Ports e Adapters, tem o objetivo de separar as responsabilidades da aplicação, reduzir o acoplamento entre as camadas e facilitar sua evolução ao longo das próximas etapas do projeto. Por esse motivo, esse foi o modelo de arquitetura adotado para desenvolvermos o QuimiPort.
 
 ### Benefícios e tradeoffs
 
-Nesse cenário, as regras de negócio serão concentradas no domínio da aplicação. Isso garante que as regras permaneçam independentes da infraestrutura utilizada no sistema. COmo tradeoff, isso exige um esforço maior ao modelar e definir essas abstrações no início do desenvolvimento.
+Nesse cenário, as regras de negócio serão concentradas no domínio da aplicação. Isso garante que as regras permaneçam independentes da infraestrutura utilizada no sistema. Como tradeoff, isso exige um esforço maior ao modelar e definir essas abstrações no início do desenvolvimento.
 
 ## Evolução do projeto
 
-No caso da arquitetura Hexagonal, cada módulo pode ser incluído como um novo ccaso de uso no núcleo da aplicação, reutilizando entidades e regras de negócio já existentes. Desse modo, é possível adicionar novas funcionalidades sem alterar o domínio da aplicação
+No caso da arquitetura Hexagonal, cada módulo pode ser incluído como um novo caso de uso no núcleo da aplicação, reutilizando entidades e regras de negócio já existentes. Desse modo, é possível adicionar novas funcionalidades sem alterar o domínio da aplicação
 
 ### Backend
 
@@ -197,7 +197,7 @@ interface CargaRepository {
 
 ### Classes
 
-As classes serão utilizadas quando um objeto possuir comportamento e regras próprias, principalmente em entidades, agregados e Value Objets do domínio. Dessa forma, as regras de negócio podem ser protegidas pelo próprio domínio.
+As classes serão utilizadas quando um objeto possuir comportamento e regras próprias, principalmente em entidades, agregados e Value Objects do domínio. Dessa forma, as regras de negócio podem ser protegidas pelo próprio domínio.
 
 Por exemplo, em vez de alterar diretamente o status de uma carga, a entidade poderá controlar a operação:
 
@@ -259,7 +259,7 @@ Os contratos e tipos utilizados por diferentes partes da aplicação serão orga
 
 O QuimiPort deverá evoluir ao longo das próximas fases, podendo incorporar diferentes interfaces, integrações e componentes de infraestrutura. É necessário evitar que as regras de negócio fiquem acopladas às tecnologias utilizadas.
 
-#### Decião
+#### Decisão
 
 Adotar a **Arquitetura Hexagonal (Ports and Adapters)** como arquitetura estrutural da aplicação.
 
@@ -271,7 +271,7 @@ Adotar a **Arquitetura Hexagonal (Ports and Adapters)** como arquitetura estrutu
 
 #### Justificativa
 
-A Arquitetura Hexagonal permite manter o domínio isolado e defiir contratos para comunicação com componentes externos, reduzindo o acoplamento entre regras de negócio e infraestrutura.
+A Arquitetura Hexagonal permite manter o domínio isolado e definir contratos para comunicação com componentes externos, reduzindo o acoplamento entre regras de negócio e infraestrutura.
 
 #### Consequências
 
@@ -318,29 +318,39 @@ A tipagem estática permite representar os conceitos do domínio com maior segur
 - Maior complexidade inicial;
 - Necessidade de configuração e compilação.
 
-### ADR-003 — Backend com Node.js e NestJS
+### ADR-003 — Backend com Node.js e Express
 
 **Status:** Aceito
 
+#### Contexto
+
+O backend precisa expor os casos de uso do QuimiPort por meio de uma API HTTP, mantendo o domínio e a camada de aplicação independentes do framework utilizado, conforme definido na ADR-001.
+
 #### Decisão
 
-Utilizar **Node.js com NestJS** para o desenvolvimento do backend.
+Utilizar **Node.js com Express** para o desenvolvimento do backend.
+
+#### Alternativas consideradas
+
+- NestJS;
+- Fastify.
 
 #### Justificativa
 
-O NestJS fornece uma estrutura modular adequada à separação de responsabilidades definida pela Arquitetura Hexagonal, enquanto o Node.js mantém o ecossistema alinhado ao TypeScript utilizado no projeto.
+O Express é um framework minimalista, que não impõe uma estrutura própria de módulos, decorators ou injeção de dependências. Dessa forma, a organização do projeto fica a cargo da Arquitetura Hexagonal, e o framework fica restrito aos Adapters de entrada (rotas e controllers REST), sem alcançar o domínio ou os casos de uso. O Node.js mantém o ecossistema alinhado ao TypeScript utilizado no projeto.
 
 #### Consequências
 
 **Positivas:**
-- Estrutura modular;
-- Integração com TypeScript;
-- Ecossistema JavaScript;
-- Facilidade de implementação de APIs.
+- Baixo acoplamento entre o framework e o núcleo da aplicação;
+- Menor quantidade de abstrações e convenções a serem aprendidas;
+- Ecossistema consolidado, com ampla documentação e comunidade;
+- Facilidade de implementação e teste de APIs.
 
 **Negativas:**
-- Adição de abstrações e convenções do framework;
-- Dependência do ecossistema Node.js/NestJS na infraestrutura.
+- Necessidade de organizar manualmente a estrutura de pastas, a injeção de dependências e a composição dos módulos;
+- Ausência de recursos nativos de validação, que precisarão ser tratados por bibliotecas complementares ou pelo próprio domínio;
+- Dependência do ecossistema Node.js/Express na infraestrutura.
 
 ### ADR-004 — Frontend com React
 
