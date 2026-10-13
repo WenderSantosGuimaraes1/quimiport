@@ -14,7 +14,11 @@ No caso da arquitetura Hexagonal, cada módulo pode ser incluído como um novo c
 
 ### Backend
 
-O backend será desenvolvido utilizando Node.js com NestJS, adotando uma estrutura modular que facilite a separação de responsabilidades e a evolução da aplicação. O NestJS será utilizado para estruturar a camada de aplicação e as integrações necessárias, mantendo as regras de negócio isoladas conforme a Arquitetura Hexagonal.
+Possíveis soluções:
+
+- Node.js com Express
+- Spring Boot (Java)
+- ASP .NET Core (.NET)
 
 ### Frontend
 
