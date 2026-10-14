@@ -30,50 +30,21 @@ A aplicação segue a **Arquitetura Hexagonal (Ports and Adapters)**. As decisõ
 
 ## Como rodar o projeto
 
-### Com Docker (recomendado)
+O projeto pode ser executado de duas formas:
 
-Sobe o banco de dados e a API em containers. Não é necessário ter Node.js nem PostgreSQL instalados.
+- [**Localmente**](#rodando-localmente): a API roda direto na máquina, com recarregamento automático a cada alteração no código. Indicado para desenvolvimento.
+- [**Via Docker**](#rodando-via-docker): a API e o banco de dados rodam em containers, sem precisar instalar Node.js nem PostgreSQL.
 
-**Pré-requisito:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado e em execução (no Windows, com o backend WSL 2).
+Em ambos os casos, a API fica disponível em http://localhost:3000.
 
-```bash
-npm run docker:up
-```
+### Rodando localmente
 
-Se não tiver o Node.js instalado, use diretamente `docker compose up -d --build`.
+#### Pré-requisitos
 
-Serviços disponíveis:
+- [Node.js](https://nodejs.org/) 22 ou superior;
+- Um PostgreSQL 17 acessível em `localhost:5432`. Pode ser uma instalação local ou o banco do Docker (veja o passo 3).
 
-| Serviço | Endereço |
-| --- | --- |
-| API | http://localhost:3000 |
-| PostgreSQL | `localhost:5432` (usuário, senha e banco: `quimiport`) |
-
-Na primeira inicialização, o banco é criado a partir do script [database/schema.sql](./database/schema.sql).
-
-Para verificar se tudo está funcionando:
-
-```bash
-# API: deve responder {"status":"ok"}
-curl http://localhost:3000/health
-
-# Banco: deve listar as tabelas criadas pelo schema.sql
-docker exec quimiport-db psql -U quimiport -c "\dt"
-```
-
-Outros comandos:
-
-| Comando | Descrição |
-| --- | --- |
-| `npm run docker:logs` | Acompanha os logs dos containers |
-| `npm run docker:down` | Para e remove os containers (os dados do banco são mantidos) |
-| `npm run docker:reset` | Apaga os dados do banco e sobe tudo novamente. Necessário após alterar o `schema.sql`, que só é executado com o banco vazio |
-
-### Localmente (desenvolvimento)
-
-Executa a API na máquina, com recarregamento automático a cada alteração no código.
-
-**Pré-requisitos:** Node.js 22 ou superior e um PostgreSQL acessível. É possível usar o banco do Docker subindo apenas ele: `docker compose up -d db`.
+#### Passo a passo
 
 1. Instale as dependências:
 
@@ -81,7 +52,7 @@ Executa a API na máquina, com recarregamento automático a cada alteração no 
    npm install
    ```
 
-2. Crie um arquivo `.env` na raiz do projeto:
+2. Crie um arquivo `.env` na raiz do projeto com o conteúdo abaixo:
 
    ```env
    NODE_ENV=development
@@ -93,13 +64,32 @@ Executa a API na máquina, com recarregamento automático a cada alteração no 
    DATABASE_URL=postgresql://quimiport:quimiport@localhost:5432/quimiport?schema=public
    ```
 
-3. Inicie a API:
+3. Suba o banco de dados. A forma mais simples é subir apenas o container do banco:
+
+   ```bash
+   docker compose up -d db
+   ```
+
+   Se preferir usar um PostgreSQL instalado na máquina, crie o usuário e o banco `quimiport` e execute o script [database/schema.sql](./database/schema.sql):
+
+   ```bash
+   psql -U quimiport -d quimiport -f database/schema.sql
+   ```
+
+4. Inicie a API em modo de desenvolvimento:
 
    ```bash
    npm run start:dev
    ```
 
-### Scripts disponíveis
+#### Verificação
+
+```bash
+# Deve responder {"status":"ok"}
+curl http://localhost:3000/health
+```
+
+#### Scripts disponíveis
 
 | Comando | Descrição |
 | --- | --- |
@@ -111,6 +101,57 @@ Executa a API na máquina, com recarregamento automático a cada alteração no 
 | `npm run test:cov` | Executa os testes com relatório de cobertura |
 | `npm run lint` | Analisa e corrige o código com ESLint |
 | `npm run format` | Formata o código com Prettier |
+
+### Rodando via Docker
+
+#### Pré-requisitos
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado e em execução. No Windows, é necessário o backend WSL 2.
+
+Não é necessário criar o arquivo `.env`: o Docker Compose já define valores padrão para as variáveis de ambiente.
+
+#### Passo a passo
+
+1. Na raiz do projeto, construa as imagens e suba os containers:
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+   Atalho equivalente, se o Node.js estiver instalado: `npm run docker:up`.
+
+2. Aguarde os containers iniciarem. A API só sobe depois que o banco estiver pronto para receber conexões.
+
+Serviços disponíveis:
+
+| Serviço | Container | Endereço |
+| --- | --- | --- |
+| API | `quimiport-api` | http://localhost:3000 |
+| PostgreSQL | `quimiport-db` | `localhost:5432` (usuário, senha e banco: `quimiport`) |
+
+Na primeira inicialização, as tabelas do banco são criadas a partir do script [database/schema.sql](./database/schema.sql).
+
+#### Verificação
+
+```bash
+# Status dos containers: ambos devem aparecer como "healthy"
+docker compose ps
+
+# API: deve responder {"status":"ok"}
+curl http://localhost:3000/health
+
+# Banco: deve listar as tabelas criadas pelo schema.sql
+docker exec quimiport-db psql -U quimiport -c "\dt"
+```
+
+#### Comandos úteis
+
+| Comando | Atalho npm | Descrição |
+| --- | --- | --- |
+| `docker compose logs -f` | `npm run docker:logs` | Acompanha os logs dos containers |
+| `docker compose down` | `npm run docker:down` | Para e remove os containers. Os dados do banco são mantidos |
+| `docker compose down -v` | — | Para os containers e apaga os dados do banco |
+| `docker compose down -v && docker compose up -d --build` | `npm run docker:reset` | Recria o banco do zero. Necessário após alterar o `schema.sql`, que só é executado com o banco vazio |
 
 ## Integrantes do grupo
 
