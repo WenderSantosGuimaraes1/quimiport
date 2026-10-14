@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: quimiport-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-quimiport}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-quimiport}
+      POSTGRES_DB: ${POSTGRES_DB:-quimiport}
+    ports:
+      - '5432:5432'
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      # Executado apenas na primeira inicialização (volume vazio)
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    container_name: quimiport-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-quimiport}:${POSTGRES_PASSWORD:-quimiport}@db:5432/${POSTGRES_DB:-quimiport}?schema=public
+    ports:
+      - '${PORT:-3000}:3000'
+
+volumes:
+  db-data:
