@@ -1,7 +1,11 @@
 import { env } from './shared/config/env';
+import { prisma } from './shared/infrastructure/database/prisma';
 import { criarApp } from './app';
 
-function bootstrap(): void {
+async function bootstrap(): Promise<void> {
+  // Conecta antes de abrir a porta: se o banco estiver fora, a API nem sobe
+  await prisma.$connect();
+
   const app = criarApp();
 
   const servidor = app.listen(env.porta, () => {
@@ -10,11 +14,16 @@ function bootstrap(): void {
 
   const encerrar = (sinal: NodeJS.Signals): void => {
     console.log(`${sinal} recebido, encerrando servidor...`);
-    servidor.close(() => process.exit(0));
+    servidor.close(() => {
+      void prisma.$disconnect().finally(() => process.exit(0));
+    });
   };
 
   process.on('SIGINT', encerrar);
   process.on('SIGTERM', encerrar);
 }
 
-bootstrap();
+bootstrap().catch((erro: unknown) => {
+  console.error('Falha ao iniciar a aplicação:', erro);
+  process.exit(1);
+});
