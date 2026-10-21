@@ -6,3 +6,44 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// =====================================================================
+// Usuários
+// Tabela criada por database/schema.sql. Os nomes ficam em camelCase no
+// código e são mapeados para snake_case no banco com @map/@@map.
+// As check constraints (cpf com 11 dígitos, nome não vazio, data de
+// nascimento no passado) existem só no banco: o Prisma não as representa.
+// =====================================================================
+
+enum StatusUsuario {
+  ATIVO
+  INATIVO
+
+  @@map("status_usuario")
+}
+
+enum CargoProfissional {
+  OPERADOR
+  INSPETOR
+  RESPONSAVEL_TECNICO
+  GESTOR
+  ADMINISTRADOR
+
+  @@map("cargo_profissional")
+}
+
+model Usuario {
+  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome              String            @db.VarChar(150)
+  status            StatusUsuario     @default(ATIVO)
+  cargoProfissional CargoProfissional @map("cargo_profissional")
+  dataNascimento    DateTime          @map("data_nascimento") @db.Date
+  cpf               String            @unique @db.Char(11)
+  senhaHash         String            @map("senha_hash") @db.VarChar(255)
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  // O banco não tem trigger para updated_at: o Prisma preenche a cada update
+  updatedAt         DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([status], map: "usuarios_status_idx")
+  @@map("usuarios")
+}
