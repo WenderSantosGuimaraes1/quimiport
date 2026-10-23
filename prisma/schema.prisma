@@ -1,3 +1,7 @@
+// Espelha database/schema.sql, que é quem cria o banco (entrypoint do Docker).
+// CHECKs, o índice único parcial de produtos e os triggers do histórico só
+// existem no SQL. Ao alterar o banco, atualize os dois arquivos.
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -5,4 +9,240 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+// ----- Enums ------------------------------------------------------------
+
+enum StatusUsuario {
+  ATIVO
+  INATIVO
+
+  @@map("status_usuario")
+}
+
+enum CargoProfissional {
+  OPERADOR
+  INSPETOR
+  RESPONSAVEL_TECNICO
+  GESTOR
+  ADMINISTRADOR
+
+  @@map("cargo_profissional")
+}
+
+enum StatusProduto {
+  ATIVO
+  INATIVO
+
+  @@map("status_produto")
+}
+
+enum ClasseRisco {
+  CLASSE_1
+  CLASSE_2
+  CLASSE_3
+  CLASSE_4
+  CLASSE_5
+  CLASSE_6
+  CLASSE_7
+  CLASSE_8
+  CLASSE_9
+
+  @@map("classe_risco")
+}
+
+enum GrupoCompatibilidade {
+  EXPLOSIVOS
+  GASES
+  LIQUIDOS_INFLAMAVEIS
+  SOLIDOS_INFLAMAVEIS
+  OXIDANTES_PEROXIDOS_ORGANICOS
+  TOXICOS_INFECTANTES
+  RADIOATIVOS
+  CORROSIVOS
+  SUBSTANCIAS_PERIGOSAS_DIVERSAS
+
+  @@map("grupo_compatibilidade")
+}
+
+enum EstadoFisico {
+  SOLIDO
+  LIQUIDO
+  GASOSO
+
+  @@map("estado_fisico")
+}
+
+enum UnidadeMedida {
+  KG
+  T
+  L
+  M3
+
+  @@map("unidade_medida")
+}
+
+enum StatusCarga {
+  REGISTRADA
+  EM_ANALISE
+  EM_INSPECAO
+  LIBERADA
+  BLOQUEADA
+  EM_MOVIMENTACAO
+  FINALIZADA
+  CANCELADA
+
+  @@map("status_carga")
+}
+
+enum StatusDocumento {
+  PENDENTE
+  VALIDO
+  INVALIDO
+  VENCIDO
+
+  @@map("status_documento")
+}
+
+enum ResultadoInspecao {
+  APROVADA
+  REPROVADA
+
+  @@map("resultado_inspecao")
+}
+
+enum TipoEvento {
+  REGISTRO
+  MUDANCA_STATUS
+  DOCUMENTO_REGISTRADO
+  DOCUMENTACAO_VALIDADA
+  INSPECAO_REGISTRADA
+  BLOQUEIO
+  LIBERACAO
+  CANCELAMENTO
+
+  @@map("tipo_evento")
+}
+
+// ----- Tabelas ----------------------------------------------------------
+
+model Usuario {
+  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome              String            @db.VarChar(150)
+  status            StatusUsuario     @default(ATIVO)
+  cargoProfissional CargoProfissional @map("cargo_profissional")
+  dataNascimento    DateTime          @map("data_nascimento") @db.Date
+  cpf               String            @unique @db.Char(11)
+  senhaHash         String            @map("senha_hash") @db.VarChar(255)
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime          @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  cargasResponsavel CargaQuimica[]
+  documentosCarga   DocumentoCarga[]
+  inspecoes         Inspecao[]
+  eventosHistorico  HistoricoCarga[]
+
+  @@index([status])
+  @@map("usuarios")
+}
+
+model ProdutoQuimico {
+  id                   String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome                 String               @db.VarChar(150)
+  descricao            String?
+  numeroOnu            String               @map("numero_onu") @db.VarChar(10)
+  classeRisco          ClasseRisco          @map("classe_risco")
+  grupoCompatibilidade GrupoCompatibilidade @map("grupo_compatibilidade")
+  estadoFisico         EstadoFisico?        @map("estado_fisico")
+  status               StatusProduto        @default(ATIVO)
+  createdAt            DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime             @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  cargas CargaQuimica[]
+
+  @@index([status])
+  @@map("produtos_quimicos")
+}
+
+model CargaQuimica {
+  id                   String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo               String        @unique @db.VarChar(30)
+  produtoId            String        @map("produto_id") @db.Uuid
+  produtoNome          String        @map("produto_nome") @db.VarChar(150)
+  produtoNumeroOnu     String        @map("produto_numero_onu") @db.VarChar(10)
+  produtoClasseRisco   ClasseRisco   @map("produto_classe_risco")
+  quantidade           Decimal       @db.Decimal(14, 3)
+  unidadeMedida        UnidadeMedida @map("unidade_medida")
+  origem               String        @db.VarChar(150)
+  destino              String        @db.VarChar(150)
+  responsavelId        String        @map("responsavel_id") @db.Uuid
+  status               StatusCarga   @default(REGISTRADA)
+  documentacaoValida   Boolean       @default(false) @map("documentacao_valida")
+  inspecaoPrevistaPara DateTime?     @map("inspecao_prevista_para") @db.Date
+  dataEntrada          DateTime      @map("data_entrada") @db.Timestamptz(3)
+  createdAt            DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime      @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  produto     ProdutoQuimico   @relation(fields: [produtoId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  responsavel Usuario          @relation(fields: [responsavelId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  documentos  DocumentoCarga[]
+  inspecoes   Inspecao[]
+  historico   HistoricoCarga[]
+
+  @@index([status])
+  @@index([produtoId])
+  @@index([responsavelId])
+  @@map("cargas_quimicas")
+}
+
+model DocumentoCarga {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cargaId       String          @map("carga_id") @db.Uuid
+  tipoDocumento String          @map("tipo_documento") @db.VarChar(100)
+  status        StatusDocumento @default(PENDENTE)
+  dataValidade  DateTime        @map("data_validade") @db.Date
+  autorId       String          @map("autor_id") @db.Uuid
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  carga CargaQuimica @relation(fields: [cargaId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  autor Usuario      @relation(fields: [autorId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([cargaId])
+  @@map("documentos_carga")
+}
+
+model Inspecao {
+  id           String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cargaId      String            @map("carga_id") @db.Uuid
+  resultado    ResultadoInspecao
+  motivo       String?
+  observacoes  String?
+  autorId      String            @map("autor_id") @db.Uuid
+  registradaEm DateTime          @default(now()) @map("registrada_em") @db.Timestamptz(3)
+
+  carga CargaQuimica @relation(fields: [cargaId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  autor Usuario      @relation(fields: [autorId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([cargaId, registradaEm(sort: Desc)])
+  @@index([autorId])
+  @@map("inspecoes")
+}
+
+/// Somente inserção: triggers no banco rejeitam UPDATE, DELETE e TRUNCATE (RN011)
+model HistoricoCarga {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cargaId        String       @map("carga_id") @db.Uuid
+  tipoEvento     TipoEvento   @map("tipo_evento")
+  statusAnterior StatusCarga? @map("status_anterior")
+  statusNovo     StatusCarga? @map("status_novo")
+  motivo         String?
+  autorId        String       @map("autor_id") @db.Uuid
+  ocorridoEm     DateTime     @default(now()) @map("ocorrido_em") @db.Timestamptz(3)
+
+  carga CargaQuimica @relation(fields: [cargaId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  autor Usuario      @relation(fields: [autorId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([cargaId, ocorridoEm(sort: Desc)])
+  @@index([autorId])
+  @@map("historico_carga")
 }
