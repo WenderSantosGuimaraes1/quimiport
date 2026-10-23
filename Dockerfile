@@ -1,17 +1,24 @@
 # ---------- Build ----------
 FROM node:22-alpine AS build
 
+# OpenSSL é exigido pelo engine do Prisma
+RUN apk add --no-cache openssl
+
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY tsconfig.json tsconfig.build.json ./
+COPY prisma ./prisma
 COPY src ./src
+# O script build roda prisma generate antes de compilar
 RUN npm run build
 
 # ---------- Runtime ----------
 FROM node:22-alpine AS runtime
+
+RUN apk add --no-cache openssl
 
 ENV NODE_ENV=production
 WORKDIR /app
@@ -19,6 +26,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
+# Client do Prisma gerado no build (o CLI é devDependency e não existe aqui)
+COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/dist ./dist
 
 USER node
