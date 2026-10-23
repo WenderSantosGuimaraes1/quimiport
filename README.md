@@ -20,7 +20,8 @@ Repositório destinado à entrega do Tech Challenge do curso de pós-graduação
 | Runtime | [Node.js](https://nodejs.org/) 22 |
 | Framework HTTP | [Express](https://expressjs.com/) 5 |
 | Banco de dados | [PostgreSQL](https://www.postgresql.org/) 17 |
-| ORM | [Prisma](https://www.prisma.io/) 6 (configurado, ainda sem modelos) |
+| ORM | [Prisma](https://www.prisma.io/) 6, com models espelhando o [database/schema.sql](./database/schema.sql) |
+| Validação de entrada | [Zod](https://zod.dev/) 4, restrito aos adapters HTTP |
 | Containers | [Docker](https://www.docker.com/) e Docker Compose |
 | Testes | [Jest](https://jestjs.io/) e [Supertest](https://github.com/ladjs/supertest) |
 | Qualidade de código | [ESLint](https://eslint.org/) e [Prettier](https://prettier.io/) |
@@ -76,7 +77,13 @@ Em ambos os casos, a API fica disponível em http://localhost:3000.
    psql -U quimiport -d quimiport -f database/schema.sql
    ```
 
-4. Inicie a API em modo de desenvolvimento:
+4. Gere o client do Prisma (repita sempre que alterar o `prisma/schema.prisma`):
+
+   ```bash
+   npm run prisma:generate
+   ```
+
+5. Inicie a API em modo de desenvolvimento:
 
    ```bash
    npm run start:dev
@@ -94,7 +101,8 @@ curl http://localhost:3000/health
 | Comando | Descrição |
 | --- | --- |
 | `npm run start:dev` | Inicia a API em modo de desenvolvimento, com recarregamento automático |
-| `npm run build` | Compila o projeto para a pasta `dist/` |
+| `npm run build` | Gera o client do Prisma e compila o projeto para a pasta `dist/` |
+| `npm run prisma:generate` | Gera o client do Prisma a partir do `prisma/schema.prisma` |
 | `npm start` | Executa a versão compilada |
 | `npm test` | Executa os testes unitários |
 | `npm run test:e2e` | Executa os testes end-to-end |
@@ -152,6 +160,47 @@ docker exec quimiport-db psql -U quimiport -c "\dt"
 | `docker compose down` | `npm run docker:down` | Para e remove os containers. Os dados do banco são mantidos |
 | `docker compose down -v` | — | Para os containers e apaga os dados do banco |
 | `docker compose down -v && docker compose up -d --build` | `npm run docker:reset` | Recria o banco do zero. Necessário após alterar o `schema.sql`, que só é executado com o banco vazio |
+
+## Principais endpoints
+
+| Recurso | Método e rota | Descrição |
+| --- | --- | --- |
+| Usuários | `POST /usuarios` | Cadastra um usuário |
+| | `GET /usuarios` | Lista usuários (filtro `status`, paginação `pagina` e `porPagina`) |
+| | `GET /usuarios/:id` | Busca um usuário |
+| | `PATCH /usuarios/:id` | Atualiza nome, cargo ou data de nascimento |
+| | `PATCH /usuarios/:id/inativar` e `/ativar` | Inativa ou reativa (exclusão lógica) |
+| Produtos químicos | `POST /produtos-quimicos` | Cadastra um produto |
+| | `GET /produtos-quimicos` | Lista produtos (filtros `status` e `classeRisco`) |
+| | `GET /produtos-quimicos/:id` | Busca um produto |
+| | `PUT /produtos-quimicos/:id` | Substitui os dados cadastrais |
+| | `PATCH /produtos-quimicos/:id/inativar` | Inativa (exclusão lógica) |
+| Cargas químicas | `POST /cargas-quimicas` | Registra uma carga |
+| | `GET /cargas-quimicas` | Lista cargas (filtros `status`, `produtoId` e `responsavelTecnicoId`) |
+| | `GET /cargas-quimicas/:id` | Busca uma carga |
+| | `PATCH /cargas-quimicas/:id/status` | Muda o status, conforme a máquina de estados |
+| | `PATCH /cargas-quimicas/:id/bloquear` | Bloqueia (exige `motivo`) |
+| | `PATCH /cargas-quimicas/:id/liberar` | Libera (exige documentação válida) |
+| | `PATCH /cargas-quimicas/:id/cancelar` | Cancela (exige `motivo`) |
+
+Como ainda não há autenticação, toda operação que altera uma carga recebe no corpo o campo obrigatório `autorId`, com o UUID do usuário que a executa. Ele é gravado no histórico da carga. Exemplo de registro:
+
+```json
+POST /cargas-quimicas
+{
+  "codigo": "CG-2026-0001",
+  "produtoId": "<id do produto ativo>",
+  "quantidade": 1500.5,
+  "unidadeMedida": "KG",
+  "origem": "Terminal A",
+  "destino": "Navio X",
+  "responsavelTecnicoId": "<id de usuário ativo com cargo RESPONSAVEL_TECNICO>",
+  "documentacaoValida": true,
+  "autorId": "<id do usuário que registra a carga>"
+}
+```
+
+O modelo de dados, a máquina de estados da carga e a divisão das validações entre banco e domínio estão descritos em [Modelagem de dados](./docs/09-modelagem-de-dados.md).
 
 ## Integrantes do grupo
 
