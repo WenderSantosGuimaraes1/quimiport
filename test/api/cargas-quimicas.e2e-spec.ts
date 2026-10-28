@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import {
   appTeste,
@@ -124,6 +125,98 @@ describe('API de cargas químicas', () => {
     expect(corpo<{ codigo: string }>(resposta).codigo).toBe(
       'PRODUTO_QUIMICO_INATIVO',
     );
+  });
+
+  // Uma carga precisa de um produto químico associado.
+  it('Valida o bloqueio de carga sem produto químico associado.', async () => {
+    // Tenta registrar a carga sem informar o produto.
+    const resposta = await request(appTeste).post('/cargas-quimicas').send({
+      codigo: novoCodigoCarga(),
+      quantidade: 10,
+      unidadeMedida: 'KG',
+      origem: 'Origem E2E',
+      destino: 'Destino E2E',
+      responsavelTecnicoId: responsavelId,
+      autorId: responsavelId,
+    });
+
+    // Confere que a API apontou o campo do produto.
+    expect(resposta.status).toBe(400);
+    expect(
+      corpo<{ codigo: string; detalhes: { campo: string }[] }>(resposta),
+    ).toMatchObject({
+      codigo: 'DADOS_INVALIDOS',
+      detalhes: [{ campo: 'produtoId' }],
+    });
+  });
+
+  // O produto informado precisa existir.
+  it('Valida o bloqueio de carga com produto químico inexistente.', async () => {
+    // Tenta registrar a carga com um produto que não existe.
+    const resposta = await request(appTeste).post('/cargas-quimicas').send({
+      codigo: novoCodigoCarga(),
+      produtoId: randomUUID(),
+      quantidade: 10,
+      unidadeMedida: 'KG',
+      origem: 'Origem E2E',
+      destino: 'Destino E2E',
+      responsavelTecnicoId: responsavelId,
+      autorId: responsavelId,
+    });
+
+    // Confere que a API não encontrou o produto.
+    expect(resposta.status).toBe(404);
+    expect(corpo<{ codigo: string }>(resposta).codigo).toBe(
+      'PRODUTO_QUIMICO_NAO_ENCONTRADO',
+    );
+  });
+
+  // Toda carga precisa de um responsável técnico informado.
+  it('Valida o bloqueio de carga sem responsável técnico.', async () => {
+    // Tenta registrar a carga sem informar o responsável.
+    const produto = await criarProduto();
+    const resposta = await request(appTeste).post('/cargas-quimicas').send({
+      codigo: novoCodigoCarga(),
+      produtoId: produto.id,
+      quantidade: 10,
+      unidadeMedida: 'KG',
+      origem: 'Origem E2E',
+      destino: 'Destino E2E',
+      autorId: responsavelId,
+    });
+
+    // Confere que a API apontou o campo do responsável.
+    expect(resposta.status).toBe(400);
+    expect(
+      corpo<{ codigo: string; detalhes: { campo: string }[] }>(resposta),
+    ).toMatchObject({
+      codigo: 'DADOS_INVALIDOS',
+      detalhes: [{ campo: 'responsavelTecnicoId' }],
+    });
+  });
+
+  // O responsável técnico precisa ter o cargo de responsável técnico.
+  it('Valida o bloqueio de carga com responsável sem o cargo exigido.', async () => {
+    // Usa um operador como responsável técnico.
+    const produto = await criarProduto();
+    const operadorId = await criarUsuario('OPERADOR');
+    const resposta = await request(appTeste).post('/cargas-quimicas').send({
+      codigo: novoCodigoCarga(),
+      produtoId: produto.id,
+      quantidade: 10,
+      unidadeMedida: 'KG',
+      origem: 'Origem E2E',
+      destino: 'Destino E2E',
+      responsavelTecnicoId: operadorId,
+      autorId: responsavelId,
+    });
+
+    // Confere que a API bloqueou o cadastro pela regra RN009.
+    expect(resposta.status).toBe(422);
+    expect(corpo<{ codigo: string; regra: string }>(resposta)).toMatchObject({
+      codigo: 'RESPONSAVEL_TECNICO_INVALIDO',
+      regra: 'RN009',
+    });
   });
 
   // Quantidades zero e negativas devem ser recusadas.

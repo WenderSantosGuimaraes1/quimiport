@@ -62,4 +62,19 @@ describe('CriarProdutoQuimico', () => {
     ).rejects.toMatchObject({ codigo: 'CLASSE_RISCO_INVALIDA' });
     expect(repositorio.salvar.mock.calls).toHaveLength(0);
   });
+
+  // Rejeita status fora de ATIVO e INATIVO.
+  it('Valida o bloqueio de cadastro com status inválido.', async () => {
+    // Tenta cadastrar com um status inexistente.
+    const { caso, repositorio } = criarCaso();
+
+    // Confere o erro, a regra e que nada foi salvo.
+    await expect(
+      caso.executar({ ...entrada, status: 'SUSPENSO' }),
+    ).rejects.toMatchObject({
+      codigo: 'STATUS_PRODUTO_INVALIDO',
+      regra: 'RN021',
+    });
+    expect(repositorio.salvar.mock.calls).toHaveLength(0);
+  });
 });

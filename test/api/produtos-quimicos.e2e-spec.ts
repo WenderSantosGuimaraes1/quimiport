@@ -65,4 +65,25 @@ describe('API de produtos químicos', () => {
     expect(resposta.status).toBe(400);
     expect(corpo<{ codigo: string }>(resposta).codigo).toBe('DADOS_INVALIDOS');
   });
+
+  // Status fora de ATIVO e INATIVO deve ser rejeitado pela API.
+  it('Valida o bloqueio de cadastro com status inválido.', async () => {
+    // Envia o cadastro com um status inexistente.
+    const resposta = await request(appTeste)
+      .post('/produtos-quimicos')
+      .send({
+        nome: novoNome('Produto E2E'),
+        numeroOnu: '1830',
+        classeRisco: 'CLASSE_3',
+        grupoCompatibilidade: 'CORROSIVOS',
+        status: 'SUSPENSO',
+      });
+
+    // Confere que a API rejeitou o status e informou a regra.
+    expect(resposta.status).toBe(400);
+    expect(corpo<{ codigo: string; regra: string }>(resposta)).toMatchObject({
+      codigo: 'STATUS_PRODUTO_INVALIDO',
+      regra: 'RN021',
+    });
+  });
 });

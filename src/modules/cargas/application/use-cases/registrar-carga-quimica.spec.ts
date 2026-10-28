@@ -63,6 +63,7 @@ describe('RegistrarCargaQuimica', () => {
     return {
       repositorio,
       produtos,
+      usuarios,
       caso: new RegistrarCargaQuimica(repositorio, produtos, usuarios),
     };
   }
@@ -100,6 +101,72 @@ describe('RegistrarCargaQuimica', () => {
       expect(() =>
         Quantidade.criar(quantidade, criarUnidadeMedida('KG')),
       ).toThrow('Quantidade da carga deve ser maior que zero');
+    },
+  );
+
+  // Rejeita carga sem produto químico associado.
+  it('Valida o bloqueio de carga sem produto químico associado.', async () => {
+    // Simula um produto que não existe.
+    const { caso, produtos, repositorio } = criarCaso();
+    produtos.buscarPorId.mockResolvedValue(null);
+
+    // Confere o erro e que nada foi salvo.
+    await expect(caso.executar(entrada, 'autor-1')).rejects.toMatchObject({
+      codigo: 'PRODUTO_QUIMICO_NAO_ENCONTRADO',
+    });
+    expect(repositorio.registrar.mock.calls).toHaveLength(0);
+  });
+
+  // Rejeita carga com responsável técnico inexistente.
+  it('Valida o bloqueio de carga sem responsável técnico.', async () => {
+    // O autor existe, mas o responsável técnico não.
+    const { caso, usuarios, repositorio } = criarCaso();
+    usuarios.buscarPorId
+      .mockReset()
+      .mockResolvedValueOnce({
+        id: 'autor-1',
+        ativo: true,
+        responsavelTecnico: false,
+      })
+      .mockResolvedValueOnce(null);
+
+    // Confere o erro, a regra e que nada foi salvo.
+    await expect(caso.executar(entrada, 'autor-1')).rejects.toMatchObject({
+      codigo: 'RESPONSAVEL_TECNICO_NAO_ENCONTRADO',
+      regra: 'RN009',
+    });
+    expect(repositorio.registrar.mock.calls).toHaveLength(0);
+  });
+
+  // Rejeita responsável sem o cargo exigido ou inativo.
+  it.each([
+    [
+      'sem o cargo de responsável técnico',
+      true,
+      false,
+      'RESPONSAVEL_TECNICO_INVALIDO',
+    ],
+    ['inativo', false, true, 'RESPONSAVEL_TECNICO_INATIVO'],
+  ] as const)(
+    'Valida o bloqueio de carga com responsável técnico %s.',
+    async (_descricao, ativo, responsavelTecnico, codigo) => {
+      // O autor é válido e o responsável não atende à regra.
+      const { caso, usuarios, repositorio } = criarCaso();
+      usuarios.buscarPorId
+        .mockReset()
+        .mockResolvedValueOnce({
+          id: 'autor-1',
+          ativo: true,
+          responsavelTecnico: false,
+        })
+        .mockResolvedValueOnce({ id: 'tecnico-1', ativo, responsavelTecnico });
+
+      // Confere o erro, a regra e que nada foi salvo.
+      await expect(caso.executar(entrada, 'autor-1')).rejects.toMatchObject({
+        codigo,
+        regra: 'RN009',
+      });
+      expect(repositorio.registrar.mock.calls).toHaveLength(0);
     },
   );
 });
